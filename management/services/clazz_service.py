@@ -102,5 +102,16 @@ class ClazzService:
     def delete(id: int) -> None:
         """
         删除班级 - 对标 Java ClazzServiceImpl.delete()
+        
+        业务规则：班级下有学生时不能删除
         """
+        from common.exceptions import BusinessException
+        from ..models import Student
+        
+        # 1. 判断班级下是否有学生
+        count = Student.objects.filter(clazz_id=id).count()
+        if count > 0:
+            raise BusinessException("班级下有学生，不能删除")
+        
+        # 2. 删除班级
         Clazz.objects.filter(pk=id).delete()
