@@ -359,27 +359,69 @@ Student.objects.create(
 
 ### Java 对标
 
-**方式1：实体类字段默认值**
-```java
-public class Clazz {
-    private String room;  // 引用类型，默认 null
-    private Integer masterId;  // 包装类型，默认 null
-}
+**MyBatis XML 动态SQL处理（主要方式）**
+
+在 MyBatis 的 Mapper XML 中，使用 `<if>` 标签判断字段是否为 `null` 或空字符串，只有非空时才更新：
+
+```xml
+<!-- 员工信息更新示例：EmpMapper.xml -->
+<update id="updateById">
+    update emp
+    <set>
+        <!-- 字符串字段：判断 null 和空字符串 -->
+        <if test="name != null and name != ''">
+            name = #{name},
+        </if>
+        <if test="phone != null and phone != ''">
+            phone = #{phone},
+        </if>
+        
+        <!-- 整数字段：只判断 null -->
+        <if test="job != null">
+            job = #{job},
+        </if>
+        <if test="salary != null">
+            salary = #{salary},
+        </if>
+        <if test="deptId != null">
+            dept_id = #{deptId},
+        </if>
+        
+        <if test="updateTime != null">
+            update_time = #{updateTime},
+        </if>
+    </set>
+    where id = #{id}
+</update>
 ```
 
-**方式2：手动判断**
+**工作原理**：
+- **字符串字段**：`test="field != null and field != ''"`
+  - 同时判断 `null` 和空字符串 `""`
+  - 只有字段有实际值时才更新数据库
+  - 如果前端传空字符串，该字段不会被包含在SQL中，数据库保持原值
+  
+- **整数/日期字段**：`test="field != null"`
+  - 只判断 `null`（整数不存在空字符串概念）
+  - `Integer`、`LocalDate` 等类型默认为 `null`
+
+**辅助方式：实体类包装类型**
 ```java
-if (StringUtils.isEmpty(room)) {
-    clazz.setRoom(null);
+public class Emp {
+    private Integer deptId;  // 包装类型，默认 null（而非 int 的默认值 0）
+    private Integer job;     // 允许 null
+    private Double salary;   // 允许 null
 }
 ```
 
 ### 技术对比
-| 维度 | Django | Java |
-|------|--------|------|
-| 整数空值 | `_parse_int()` 辅助方法 | 包装类型（`Integer`）默认 null |
-| 字符串空值 | `value or None` | `StringUtils.isEmpty()` 判断 |
+| 维度 | Django | Java MyBatis |
+|------|--------|--------------|
+| 字符串空值处理 | `value or None`（Python代码） | `test="field != null and field != ''"`（XML判断） |
+| 整数空值处理 | `_parse_int()` 辅助方法 | `test="field != null"` + 包装类型（`Integer`） |
+| 实现位置 | Service 层（Python代码） | Mapper XML（动态SQL） |
 | 数据库映射 | ORM 自动处理 `None` → `NULL` | MyBatis 自动处理 `null` → `NULL` |
+| 灵活性 | ✅ 代码中灵活处理 | ✅ XML 模板化处理，无需修改Java代码 |
 
 ---
 
